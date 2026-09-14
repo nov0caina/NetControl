@@ -112,6 +112,7 @@ namespace SelfishNet
                     Mac = new PhysicalAddress(LocalMac),
                     IsLocalPc = true,
                     Name = Environment.MachineName,
+                    Hostname = Environment.MachineName,
                     DeviceCategory = DeviceType.Desktop,
                     Vendor = OuiDatabase.Lookup(LocalMac) ?? "Local Host"
                 };

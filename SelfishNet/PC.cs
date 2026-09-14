@@ -83,8 +83,19 @@ namespace SelfishNet
         {
             get
             {
+                if (IsLocalPc)
+                {
+                    string localHostName = !string.IsNullOrEmpty(_hostname) &&
+                                          !_hostname.EndsWith(".arpa", StringComparison.OrdinalIgnoreCase) &&
+                                          !IPAddress.TryParse(_hostname, out _)
+                                          ? _hostname.Trim()
+                                          : Environment.MachineName;
+
+                    return TruncateWithEllipsis($"{localHostName} (Local Host)", 55);
+                }
+
                 string type = _deviceCategory != DeviceType.Unknown ? _deviceCategory.ToString() : null;
-                string name = !string.IsNullOrEmpty(_hostname) ? _hostname.Trim() : null;
+                string name = !string.IsNullOrEmpty(_hostname) && !_hostname.EndsWith(".arpa", StringComparison.OrdinalIgnoreCase) ? _hostname.Trim() : null;
                 bool isRandomized = string.Equals(_vendor, "Randomized MAC", StringComparison.Ordinal);
                 string vendor = !string.IsNullOrEmpty(_vendor) && !isRandomized ? _vendor.Trim() : null;
 

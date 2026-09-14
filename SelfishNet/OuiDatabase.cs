@@ -25,6 +25,12 @@ namespace SelfishNet
             {0x00_1B_21, "Intel"}, {0x3C_97_0E, "Intel"}, {0x68_05_CA, "Intel"},
             {0xA4_C4_94, "Intel"}, {0x80_86_F2, "Intel"}, {0xB4_69_21, "Intel"},
             {0x48_51_B7, "Intel"}, {0xDC_71_96, "Intel"}, {0x00_1E_67, "Intel"},
+            {0xBC_F1_71, "Intel"}, {0x00_15_00, "Intel"}, {0x00_13_02, "Intel"},
+            {0x48_4D_7E, "Intel"}, {0x24_EE_9A, "Intel"}, {0x94_E6_F7, "Intel"},
+            {0xF8_59_71, "Intel"}, {0x7C_2A_31, "Intel"}, {0x18_5E_0F, "Intel"},
+            {0xA0_C5_89, "Intel"}, {0x80_9B_20, "Intel"}, {0x34_E6_AD, "Intel"},
+            {0x00_28_F8, "Intel"}, {0x4C_79_6E, "Intel"}, {0x64_49_7D, "Intel"},
+            {0x84_FD_D1, "Intel"},
             // Xiaomi
             {0x64_CC_2E, "Xiaomi"}, {0x78_11_DC, "Xiaomi"}, {0x28_6C_07, "Xiaomi"},
             {0xF8_A4_5F, "Xiaomi"}, {0x9C_99_A0, "Xiaomi"}, {0x50_64_2B, "Xiaomi"},
@@ -35,10 +41,12 @@ namespace SelfishNet
             {0x70_8A_09, "Huawei"}, {0x24_69_A5, "Huawei"}, {0x04_F9_38, "Huawei"},
             // Realtek (WiFi/Ethernet chipsets)
             {0x00_E0_4C, "Realtek"}, {0x48_5D_36, "Realtek"}, {0xDC_02_8E, "Realtek"},
-            {0x52_54_00, "Realtek"},
+            {0x52_54_00, "Realtek"}, {0x00_10_E0, "Realtek"}, {0x00_0A_CD, "Realtek"},
+            {0x10_7B_44, "Realtek"}, {0x20_76_93, "Realtek"}, {0x74_D4_35, "Realtek"},
             // Espressif (ESP32/ESP8266 IoT)
             {0x24_0A_C4, "Espressif"}, {0xA4_CF_12, "Espressif"}, {0x30_AE_A4, "Espressif"},
-            {0xAC_67_B2, "Espressif"}, {0xCC_50_E3, "Espressif"},
+            {0xAC_67_B2, "Espressif"}, {0xCC_50_E3, "Espressif"}, {0x24_6F_28, "Espressif"},
+            {0x30_83_98, "Espressif"}, {0x40_22_D8, "Espressif"}, {0x7C_DF_A1, "Espressif"},
             // TP-Link
             {0x50_C7_BF, "TP-Link"}, {0xC0_06_C3, "TP-Link"}, {0x14_CC_20, "TP-Link"},
             {0xEC_08_6B, "TP-Link"}, {0x60_32_B1, "TP-Link"}, {0xB0_BE_76, "TP-Link"},
@@ -114,6 +122,8 @@ namespace SelfishNet
             {0xD0_39_57, "Lite-On"}, {0x00_26_18, "Lite-On"}, {0x40_F0_2F, "Lite-On"},
             // MediaTek (WiFi chipsets)
             {0x00_0C_E7, "MediaTek"}, {0xC4_E9_0A, "MediaTek"},
+            {0x08_E8_4F, "MediaTek"}, {0x14_F8_93, "MediaTek"},
+            {0x3C_55_76, "MediaTek"}, {0x74_C6_3B, "MediaTek"}, {0x90_F1_AA, "MediaTek"},
             // Qualcomm
             {0x00_03_7F, "Qualcomm"}, {0x04_BD_88, "Qualcomm"},
             // Broadcom

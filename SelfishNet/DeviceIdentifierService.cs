@@ -106,6 +106,19 @@ namespace SelfishNet
                 string trimmed = name.Trim();
                 if (IPAddress.TryParse(trimmed, out _)) continue;
                 if (trimmed.Equals("localhost", StringComparison.OrdinalIgnoreCase)) continue;
+                if (trimmed.EndsWith(".in-addr.arpa", StringComparison.OrdinalIgnoreCase) ||
+                    trimmed.EndsWith(".ip6.arpa", StringComparison.OrdinalIgnoreCase) ||
+                    trimmed.EndsWith(".arpa", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (string.Equals(trimmed, "_googlecast", StringComparison.OrdinalIgnoreCase) ||
+                    trimmed.EndsWith("googlecast", StringComparison.OrdinalIgnoreCase))
+                {
+                    return "Chromecast / Google Cast";
+                }
+
                 return trimmed;
             }
             return null;
@@ -139,10 +152,14 @@ namespace SelfishNet
 
                 var entry = await dnsTask.ConfigureAwait(false);
 
-                string hostname = entry.HostName;
+                string hostname = entry.HostName?.Trim();
 
-                // Don't cache if hostname is just the IP address repeated
-                if (hostname != null && hostname != ipStr)
+                // Reject technical DNS reverse zone strings or empty/IP-identical names
+                if (!string.IsNullOrEmpty(hostname) &&
+                    !string.Equals(hostname, ipStr, StringComparison.OrdinalIgnoreCase) &&
+                    !hostname.EndsWith(".in-addr.arpa", StringComparison.OrdinalIgnoreCase) &&
+                    !hostname.EndsWith(".ip6.arpa", StringComparison.OrdinalIgnoreCase) &&
+                    !hostname.EndsWith(".arpa", StringComparison.OrdinalIgnoreCase))
                 {
                     _hostnameCache.TryAdd(ipStr, hostname);
                     return hostname;
@@ -628,6 +645,13 @@ namespace SelfishNet
         {
             if (string.IsNullOrEmpty(fullName)) return null;
 
+            if (fullName.EndsWith(".in-addr.arpa", StringComparison.OrdinalIgnoreCase) ||
+                fullName.EndsWith(".ip6.arpa", StringComparison.OrdinalIgnoreCase) ||
+                fullName.EndsWith(".arpa", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
             int serviceIdx = fullName.IndexOf("._", StringComparison.Ordinal);
             if (serviceIdx > 0) fullName = fullName.Substring(0, serviceIdx);
 
@@ -638,7 +662,15 @@ namespace SelfishNet
             else if (fullName.EndsWith(".home", StringComparison.OrdinalIgnoreCase))
                 fullName = fullName.Substring(0, fullName.Length - 5);
 
-            return fullName.Trim();
+            string trimmed = fullName.Trim();
+
+            if (string.Equals(trimmed, "_googlecast", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.EndsWith("googlecast", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Chromecast / Google Cast";
+            }
+
+            return trimmed.Length > 0 ? trimmed : null;
         }
 
         // ──────────────────────────────────────────────
@@ -759,6 +791,13 @@ namespace SelfishNet
             string fullName = nameBuilder.ToString();
             if (string.IsNullOrEmpty(fullName)) return null;
 
+            if (fullName.EndsWith(".in-addr.arpa", StringComparison.OrdinalIgnoreCase) ||
+                fullName.EndsWith(".ip6.arpa", StringComparison.OrdinalIgnoreCase) ||
+                fullName.EndsWith(".arpa", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
             // Extract friendly name: "iPhone-de-Carlos._companion-link._tcp.local" → "iPhone-de-Carlos"
             // Remove service type suffixes
             int serviceIdx = fullName.IndexOf("._", StringComparison.Ordinal);
@@ -773,7 +812,14 @@ namespace SelfishNet
                 fullName = fullName.Substring(0, fullName.Length - 6);
             }
 
-            return fullName.Length > 0 ? fullName : null;
+            string result = fullName.Trim();
+            if (string.Equals(result, "_googlecast", StringComparison.OrdinalIgnoreCase) ||
+                result.EndsWith("googlecast", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Chromecast / Google Cast";
+            }
+
+            return result.Length > 0 ? result : null;
         }
 
         // ──────────────────────────────────────────────
@@ -788,7 +834,7 @@ namespace SelfishNet
             string hostname = device.Hostname ?? string.Empty;
 
             // 1. Check hostname keywords first (more specific)
-            if (ContainsAny(hostname, "-TV", "SmartTV", "BRAVIA", "Roku", "Fire-TV", "FireTV", "Chromecast", "AppleTV", "Apple-TV", "Tizen", "WebOS", "Shield", "AndroidTV", "GoogleTV", "MiBox", "Vizio", "Hisense", "TCL", "Panasonic-TV", "Sharp-TV", "Smart-TV"))
+            if (ContainsAny(hostname, "-TV", "SmartTV", "BRAVIA", "Roku", "Fire-TV", "FireTV", "Chromecast", "AppleTV", "Apple-TV", "Tizen", "WebOS", "Shield", "AndroidTV", "GoogleTV", "MiBox", "Vizio", "Hisense", "TCL", "Panasonic-TV", "Sharp-TV", "Smart-TV", "googlecast", "_googlecast", "Cast"))
                 return DeviceType.SmartTV;
 
             if (ContainsAny(hostname, "PlayStation", "PS3", "PS4", "PS5", "Xbox", "Switch", "Nintendo", "SteamDeck"))
