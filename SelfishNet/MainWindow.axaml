@@ -121,18 +121,20 @@
             <Grid RowDefinitions="Auto, Auto, *">
 
                 <!-- Table Column Headers -->
-                <Grid Grid.Row="0" ColumnDefinitions="1.2*, 1.4*, 2.4*, 1.3*, 1.0*, 0.6*, 0.6*"
+                <Grid Grid.Row="0" ColumnDefinitions="1.1*, 1.3*, 2.0*, 1.0*, 1.0*, 0.9*, 0.5*, 0.5*"
                       Background="{StaticResource HeaderBackgroundBrush}" Height="36">
                     <TextBlock Text="IP Address" Grid.Column="0" VerticalAlignment="Center" Margin="14,0,4,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"/>
                     <TextBlock Text="MAC Address" Grid.Column="1" VerticalAlignment="Center" Margin="8,0,4,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"/>
                     <TextBlock Text="Device Identification" Grid.Column="2" VerticalAlignment="Center" Margin="8,0,4,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"/>
-                    <TextBlock Text="Network Traffic" Grid.Column="3" VerticalAlignment="Center" Margin="8,0,4,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"
-                               ToolTip.Tip="Live monitored bidirectional bandwidth"/>
-                    <TextBlock Text="Cap (KB/s)" Grid.Column="4" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"
+                    <TextBlock Text="Download Speed" Grid.Column="3" VerticalAlignment="Center" Margin="8,0,4,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"
+                               ToolTip.Tip="Monitored ingress transfer rate (Download)"/>
+                    <TextBlock Text="Upload Speed" Grid.Column="4" VerticalAlignment="Center" Margin="8,0,4,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"
+                               ToolTip.Tip="Monitored egress transfer rate (Upload)"/>
+                    <TextBlock Text="Cap (KB/s)" Grid.Column="5" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"
                                ToolTip.Tip="Allowed bandwidth limit in KB/s (0 = Unlimited). Enabled when Spoof is checked."/>
-                    <TextBlock Text="Spoof" Grid.Column="5" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"
+                    <TextBlock Text="Spoof" Grid.Column="6" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"
                                ToolTip.Tip="Enable ARP redirection (MITM)"/>
-                    <TextBlock Text="Block" Grid.Column="6" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"
+                    <TextBlock Text="Block" Grid.Column="7" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" FontWeight="Bold"
                                ToolTip.Tip="Drop all network traffic"/>
                 </Grid>
 
@@ -168,7 +170,7 @@
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Border BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="0,3">
-                                <Grid ColumnDefinitions="1.2*, 1.4*, 2.4*, 1.3*, 1.0*, 0.6*, 0.6*" MinHeight="36">
+                                <Grid ColumnDefinitions="1.1*, 1.3*, 2.0*, 1.0*, 1.0*, 0.9*, 0.5*, 0.5*" MinHeight="36">
 
                                     <!-- IP Address -->
                                     <TextBlock Grid.Column="0" Text="{Binding IpDisplay}"
@@ -209,15 +211,28 @@
                                                    ToolTip.Tip="{Binding DeviceLabel}"/>
                                     </StackPanel>
 
-                                    <!-- Dynamic Traffic Speed (Emerald if active, Muted if idle) -->
-                                    <TextBlock Grid.Column="3" Text="{Binding DownloadSpeed}"
-                                               FontFamily="{StaticResource MonospaceFontFamily}"
-                                               FontSize="11.5" Foreground="{Binding TrafficBrushHex}"
-                                               TextTrimming="CharacterEllipsis"
-                                               VerticalAlignment="Center" Margin="8,0,4,0"/>
+                                    <!-- Download Speed (Emerald if active, Muted if idle) -->
+                                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="8,0,4,0">
+                                        <TextBlock Text="↓" FontSize="11" Foreground="{Binding DownloadTrafficBrushHex}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding DownloadSpeedFormatted}"
+                                                   FontFamily="{StaticResource MonospaceFontFamily}"
+                                                   FontSize="11.5" Foreground="{Binding DownloadTrafficBrushHex}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
+
+                                    <!-- Upload Speed (Cyan if active, Muted if idle) -->
+                                    <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="8,0,4,0">
+                                        <TextBlock Text="↑" FontSize="11" Foreground="{Binding UploadTrafficBrushHex}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding UploadSpeedFormatted}"
+                                                   FontFamily="{StaticResource MonospaceFontFamily}"
+                                                   FontSize="11.5" Foreground="{Binding UploadTrafficBrushHex}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
 
                                     <!-- Bandwidth Throttle Spinner -->
-                                    <NumericUpDown Grid.Column="4"
+                                    <NumericUpDown Grid.Column="5"
                                                    Value="{Binding BandwidthLimitKb}"
                                                    IsEnabled="{Binding IsThrottlingEnabled}"
                                                    Minimum="0" Maximum="1048576" Increment="64"
@@ -231,13 +246,13 @@
                                                    ToolTip.Tip="Allowed bandwidth in KB/s. 0 = Unlimited."/>
 
                                     <!-- Spoof Action Checkbox -->
-                                    <CheckBox Grid.Column="5" Classes="spoof-check"
+                                    <CheckBox Grid.Column="6" Classes="spoof-check"
                                               IsChecked="{Binding Redirect}"
                                               IsEnabled="{Binding CanControl}"
                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
                                     <!-- Block Action Checkbox -->
-                                    <CheckBox Grid.Column="6" Classes="block-check"
+                                    <CheckBox Grid.Column="7" Classes="block-check"
                                               IsChecked="{Binding Block}"
                                               IsEnabled="{Binding CanControl}"
                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>

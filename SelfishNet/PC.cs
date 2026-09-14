@@ -3,6 +3,8 @@ using System.ComponentModel;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Runtime.CompilerServices;
+using System.Threading;
+using Avalonia.Threading;
 
 namespace SelfishNet
 {
@@ -82,28 +84,85 @@ namespace SelfishNet
             get
             {
                 string type = _deviceCategory != DeviceType.Unknown ? _deviceCategory.ToString() : null;
-                string name = !string.IsNullOrEmpty(_hostname) ? _hostname : null;
-                // Treat "Randomized MAC" as no vendor for label purposes
+                string name = !string.IsNullOrEmpty(_hostname) ? _hostname.Trim() : null;
                 bool isRandomized = string.Equals(_vendor, "Randomized MAC", StringComparison.Ordinal);
-                string vendor = !string.IsNullOrEmpty(_vendor) && !isRandomized ? _vendor : null;
+                string vendor = !string.IsNullOrEmpty(_vendor) && !isRandomized ? _vendor.Trim() : null;
 
-                if (type != null && name != null) return $"{type} — {name}";
-                if (type != null && vendor != null) return $"{type} ({vendor})";
-                if (name != null) return name;
-                if (vendor != null) return vendor;
+                bool vendorRedundant = false;
+                if (name != null && vendor != null)
+                {
+                    if (name.Contains(vendor, StringComparison.OrdinalIgnoreCase) ||
+                        vendor.Contains(name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        vendorRedundant = true;
+                    }
+                    else
+                    {
+                        var tokens = vendor.Split(new[] { ' ', ',', '-', '.', '_' }, StringSplitOptions.RemoveEmptyEntries);
+                        if (tokens.Length > 0 && tokens[0].Length >= 3 && name.Contains(tokens[0], StringComparison.OrdinalIgnoreCase))
+                        {
+                            vendorRedundant = true;
+                        }
+                    }
+                }
 
-                // Fallback: show formatted MAC so user can distinguish devices
-                if (Mac != null)
+                string rawLabel;
+                if (type != null && name != null && vendor != null)
+                {
+                    if (vendorRedundant)
+                        rawLabel = $"{type} — {name}";
+                    else
+                        rawLabel = $"{type} — {name} ({vendor})";
+                }
+                else if (type != null && name != null)
+                {
+                    rawLabel = $"{type} — {name}";
+                }
+                else if (type != null && vendor != null)
+                {
+                    rawLabel = $"{type} ({vendor})";
+                }
+                else if (name != null && vendor != null)
+                {
+                    if (vendorRedundant)
+                        rawLabel = name;
+                    else
+                        rawLabel = $"{name} ({vendor})";
+                }
+                else if (name != null)
+                {
+                    rawLabel = name;
+                }
+                else if (vendor != null)
+                {
+                    rawLabel = vendor;
+                }
+                else if (Mac != null)
                 {
                     string macStr = Mac.ToString();
                     if (macStr.Length == 12)
                     {
                         string prefix = isRandomized ? "Randomized " : "";
-                        return $"{prefix}{macStr[0..2]}:{macStr[2..4]}:{macStr[4..6]}:{macStr[6..8]}:{macStr[8..10]}:{macStr[10..12]}";
+                        rawLabel = $"{prefix}{macStr[0..2]}:{macStr[2..4]}:{macStr[4..6]}:{macStr[6..8]}:{macStr[8..10]}:{macStr[10..12]}";
+                    }
+                    else
+                    {
+                        rawLabel = "Unknown Device";
                     }
                 }
-                return "Unknown Device";
+                else
+                {
+                    rawLabel = "Unknown Device";
+                }
+
+                return TruncateWithEllipsis(rawLabel, 55);
             }
+        }
+
+        private static string TruncateWithEllipsis(string value, int maxLen = 55)
+        {
+            if (string.IsNullOrEmpty(value) || value.Length <= maxLen) return value;
+            return string.Concat(value.AsSpan(0, maxLen - 1), "…");
         }
 
         private bool _redirect = false;
@@ -212,13 +271,79 @@ namespace SelfishNet
 
         public DateTime TimeSinceLastArp { get; set; }
 
+        private long _bytesSent;
+        private long _bytesReceived;
+
         /// <summary>Bytes sent in current monitoring cycle.</summary>
-        public int BytesSent;
+        public long BytesSent
+        {
+            get => Interlocked.Read(ref _bytesSent);
+            set => Interlocked.Exchange(ref _bytesSent, value);
+        }
 
         /// <summary>Bytes received in current monitoring cycle.</summary>
-        public int BytesReceived;
+        public long BytesReceived
+        {
+            get => Interlocked.Read(ref _bytesReceived);
+            set => Interlocked.Exchange(ref _bytesReceived, value);
+        }
 
-        // ── Bindable download speed ──
+        public void AddBytesSent(long count) => Interlocked.Add(ref _bytesSent, count);
+        public void AddBytesReceived(long count) => Interlocked.Add(ref _bytesReceived, count);
+
+        public (long rx, long tx) ResetByteAccumulators()
+        {
+            long rx = Interlocked.Exchange(ref _bytesReceived, 0);
+            long tx = Interlocked.Exchange(ref _bytesSent, 0);
+            return (rx, tx);
+        }
+
+        // ── Smoothed Rate Tracking Properties ──
+
+        private double _downloadSpeedKbps = 0.0;
+        public double DownloadSpeedKbps
+        {
+            get => _downloadSpeedKbps;
+            set
+            {
+                if (Math.Abs(_downloadSpeedKbps - value) > 0.01)
+                {
+                    _downloadSpeedKbps = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(DownloadSpeedFormatted));
+                    OnPropertyChanged(nameof(DownloadSpeed));
+                    OnPropertyChanged(nameof(HasActiveTraffic));
+                    OnPropertyChanged(nameof(HasActiveDownload));
+                    OnPropertyChanged(nameof(DownloadTrafficBrushHex));
+                    OnPropertyChanged(nameof(TrafficBrushHex));
+                }
+            }
+        }
+
+        private double _uploadSpeedKbps = 0.0;
+        public double UploadSpeedKbps
+        {
+            get => _uploadSpeedKbps;
+            set
+            {
+                if (Math.Abs(_uploadSpeedKbps - value) > 0.01)
+                {
+                    _uploadSpeedKbps = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(UploadSpeedFormatted));
+                    OnPropertyChanged(nameof(DownloadSpeed));
+                    OnPropertyChanged(nameof(HasActiveTraffic));
+                    OnPropertyChanged(nameof(HasActiveUpload));
+                    OnPropertyChanged(nameof(UploadTrafficBrushHex));
+                    OnPropertyChanged(nameof(TrafficBrushHex));
+                }
+            }
+        }
+
+        public string DownloadSpeedFormatted => FormatSpeed(_downloadSpeedKbps);
+        public string UploadSpeedFormatted => FormatSpeed(_uploadSpeedKbps);
+
+        // ── Bindable download / combined speed ──
 
         private string _downloadSpeed = "—";
         public string DownloadSpeed
@@ -236,9 +361,53 @@ namespace SelfishNet
             }
         }
 
-        public bool HasActiveTraffic => !string.IsNullOrEmpty(_downloadSpeed) && _downloadSpeed != "—" && !_downloadSpeed.Contains("0 KB/s");
+        public bool HasActiveTraffic => _downloadSpeedKbps >= 0.1 || _uploadSpeedKbps >= 0.1 || (!string.IsNullOrEmpty(_downloadSpeed) && _downloadSpeed != "—" && !_downloadSpeed.Contains("0 KB/s"));
+        public bool HasActiveDownload => _downloadSpeedKbps >= 0.1;
+        public bool HasActiveUpload => _uploadSpeedKbps >= 0.1;
 
+        public string DownloadTrafficBrushHex => HasActiveDownload ? "#3FB950" : "#6E7681";
+        public string UploadTrafficBrushHex => HasActiveUpload ? "#58A6FF" : "#6E7681";
         public string TrafficBrushHex => HasActiveTraffic ? "#3FB950" : "#6E7681";
+
+        public void UpdateTransferRates(double downloadKbps, double uploadKbps)
+        {
+            double down = downloadKbps < 0.05 ? 0.0 : downloadKbps;
+            double up = uploadKbps < 0.05 ? 0.0 : uploadKbps;
+
+            string prevDownText = FormatSpeed(_downloadSpeedKbps);
+            string prevUpText = FormatSpeed(_uploadSpeedKbps);
+            string newDownText = FormatSpeed(down);
+            string newUpText = FormatSpeed(up);
+
+            bool textChanged = prevDownText != newDownText || prevUpText != newUpText;
+            bool rateChanged = Math.Abs(_downloadSpeedKbps - down) > 0.05 || Math.Abs(_uploadSpeedKbps - up) > 0.05;
+
+            if (textChanged || rateChanged)
+            {
+                _downloadSpeedKbps = down;
+                _uploadSpeedKbps = up;
+                _downloadSpeed = $"↓{newDownText} ↑{newUpText}";
+
+                OnPropertyChanged(nameof(DownloadSpeedKbps));
+                OnPropertyChanged(nameof(UploadSpeedKbps));
+                OnPropertyChanged(nameof(DownloadSpeedFormatted));
+                OnPropertyChanged(nameof(UploadSpeedFormatted));
+                OnPropertyChanged(nameof(DownloadSpeed));
+                OnPropertyChanged(nameof(HasActiveTraffic));
+                OnPropertyChanged(nameof(HasActiveDownload));
+                OnPropertyChanged(nameof(HasActiveUpload));
+                OnPropertyChanged(nameof(DownloadTrafficBrushHex));
+                OnPropertyChanged(nameof(UploadTrafficBrushHex));
+                OnPropertyChanged(nameof(TrafficBrushHex));
+            }
+        }
+
+        public static string FormatSpeed(double kbps)
+        {
+            if (kbps < 0.1) return "0 KB/s";
+            if (kbps >= 1024.0) return $"{kbps / 1024.0:F1} MB/s";
+            return $"{kbps:F1} KB/s";
+        }
 
         // ── INotifyPropertyChanged ──
 
@@ -246,7 +415,24 @@ namespace SelfishNet
 
         protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            var handler = PropertyChanged;
+            if (handler == null) return;
+
+            if (Dispatcher.UIThread != null && !Dispatcher.UIThread.CheckAccess())
+            {
+                try
+                {
+                    Dispatcher.UIThread.Post(() => handler(this, new PropertyChangedEventArgs(propertyName)), DispatcherPriority.Background);
+                }
+                catch
+                {
+                    handler(this, new PropertyChangedEventArgs(propertyName));
+                }
+            }
+            else
+            {
+                handler(this, new PropertyChangedEventArgs(propertyName));
+            }
         }
     }
 }

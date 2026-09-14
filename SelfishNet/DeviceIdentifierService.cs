@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -20,8 +21,10 @@ namespace SelfishNet
         private volatile bool _isMdnsListening;
 
         private const int DnsTimeoutMs = 800;
-        private const int NetBiosTimeoutMs = 1500;
-        private const int SsdpTimeoutMs = 2000;
+        private const int NetBiosTimeoutMs = 1000;
+        private const int SsdpTimeoutMs = 1000;
+        private const int MdnsTimeoutMs = 800;
+        private const int LlmnrTimeoutMs = 800;
 
         public DeviceIdentifierService(LibPcapLiveDevice nic, PcList pcList)
         {
@@ -52,42 +55,60 @@ namespace SelfishNet
                 }
             }
 
-            // Layer 2: Reverse DNS (async, up to 800ms)
-            if (device.Ip != null)
+            if (device.Ip == null)
             {
-                string hostname = await ResolveHostnameAsync(device.Ip, ct).ConfigureAwait(false);
-                if (!string.IsNullOrEmpty(hostname))
-                {
-                    device.Hostname = hostname;
-                }
+                device.DeviceCategory = InferDeviceType(device);
+                return;
             }
 
-            // Layer 3: NetBIOS name query (async, up to 1500ms)
-            // Only try if DNS didn't resolve a useful hostname
-            if (string.IsNullOrEmpty(device.Hostname) && device.Ip != null)
+            // Layer 2-4: Active Parallel Multi-Protocol Probes
+            // Concurrently query DNS, NetBIOS, mDNS, SSDP, and LLMNR with bounded timeout (max 1200ms)
+            try
             {
-                string netbiosName = await ResolveNetBiosNameAsync(device.Ip, ct).ConfigureAwait(false);
-                if (!string.IsNullOrEmpty(netbiosName))
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                linkedCts.CancelAfter(1200);
+                CancellationToken probeToken = linkedCts.Token;
+
+                Task<string> dnsTask = ResolveHostnameAsync(device.Ip, probeToken);
+                Task<string> netbiosTask = ResolveNetBiosNameAsync(device.Ip, probeToken);
+                Task<string> mdnsTask = ProbeMdnsAsync(device.Ip, probeToken);
+                Task<string> ssdpTask = ProbeSsdpAsync(device.Ip, probeToken);
+                Task<string> llmnrTask = ProbeLlmnrAsync(device.Ip, probeToken);
+
+                await Task.WhenAll(dnsTask, netbiosTask, mdnsTask, ssdpTask, llmnrTask).ConfigureAwait(false);
+
+                string mdnsName = await mdnsTask.ConfigureAwait(false);
+                string netbiosName = await netbiosTask.ConfigureAwait(false);
+                string ssdpName = await ssdpTask.ConfigureAwait(false);
+                string llmnrName = await llmnrTask.ConfigureAwait(false);
+                string dnsName = await dnsTask.ConfigureAwait(false);
+
+                string bestName = SelectBestHostname(mdnsName, netbiosName, ssdpName, llmnrName, dnsName);
+                if (!string.IsNullOrEmpty(bestName))
                 {
-                    device.Hostname = netbiosName;
-                    Console.WriteLine($"[NetBIOS] {device.Ip}: {netbiosName}");
+                    device.Hostname = bestName;
                 }
             }
-
-            // Layer 4: SSDP probe (async, up to 2000ms)
-            // Only try if still no hostname
-            if (string.IsNullOrEmpty(device.Hostname) && device.Ip != null)
+            catch (Exception ex)
             {
-                string ssdpName = await ProbeSsdpAsync(device.Ip, ct).ConfigureAwait(false);
-                if (!string.IsNullOrEmpty(ssdpName))
-                {
-                    device.Hostname = ssdpName;
-                    Console.WriteLine($"[SSDP] {device.Ip}: {ssdpName}");
-                }
+                Console.WriteLine($"[FINGERPRINT] Probing failed for {device.Ip}: {ex.Message}");
             }
 
             // Layer 5: Device type heuristic
             device.DeviceCategory = InferDeviceType(device);
+        }
+
+        private static string SelectBestHostname(params string[] candidates)
+        {
+            foreach (var name in candidates)
+            {
+                if (string.IsNullOrWhiteSpace(name)) continue;
+                string trimmed = name.Trim();
+                if (IPAddress.TryParse(trimmed, out _)) continue;
+                if (trimmed.Equals("localhost", StringComparison.OrdinalIgnoreCase)) continue;
+                return trimmed;
+            }
+            return null;
         }
 
         // ──────────────────────────────────────────────
@@ -195,17 +216,7 @@ namespace SelfishNet
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 cts.CancelAfter(NetBiosTimeoutMs);
 
-                var receiveTask = udp.ReceiveAsync();
-                var timeoutTask = Task.Delay(NetBiosTimeoutMs, cts.Token);
-                var completed = await Task.WhenAny(receiveTask, timeoutTask).ConfigureAwait(false);
-
-                if (completed != receiveTask)
-                {
-                    _hostnameCache.TryAdd(cacheKey, string.Empty);
-                    return null;
-                }
-
-                var result = await receiveTask.ConfigureAwait(false);
+                var result = await udp.ReceiveAsync(cts.Token).ConfigureAwait(false);
                 string name = ParseNetBiosResponse(result.Buffer);
 
                 _hostnameCache.TryAdd(cacheKey, name ?? string.Empty);
@@ -326,17 +337,7 @@ namespace SelfishNet
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 cts.CancelAfter(SsdpTimeoutMs);
 
-                var receiveTask = udp.ReceiveAsync();
-                var timeoutTask = Task.Delay(SsdpTimeoutMs, cts.Token);
-                var completed = await Task.WhenAny(receiveTask, timeoutTask).ConfigureAwait(false);
-
-                if (completed != receiveTask)
-                {
-                    _hostnameCache.TryAdd(cacheKey, string.Empty);
-                    return null;
-                }
-
-                var result = await receiveTask.ConfigureAwait(false);
+                var result = await udp.ReceiveAsync(cts.Token).ConfigureAwait(false);
                 string response = Encoding.UTF8.GetString(result.Buffer);
                 string name = ParseSsdpFriendlyName(response);
 
@@ -395,6 +396,249 @@ namespace SelfishNet
             }
 
             return null;
+        }
+
+        // ──────────────────────────────────────────────
+        //  Active mDNS Probe (UDP port 5353)
+        // ──────────────────────────────────────────────
+
+        private async Task<string> ProbeMdnsAsync(IPAddress ip, CancellationToken ct)
+        {
+            string cacheKey = $"mdns_{ip}";
+            if (_hostnameCache.TryGetValue(cacheKey, out string cached)) return cached;
+
+            try
+            {
+                using var udp = new UdpClient();
+                udp.Client.ReceiveTimeout = MdnsTimeoutMs;
+
+                byte[] query = BuildDnsPtrQuery(ip, 0x0000);
+                if (query != null)
+                {
+                    var endpoint = new IPEndPoint(ip, 5353);
+                    await udp.SendAsync(query, query.Length, endpoint).ConfigureAwait(false);
+
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    cts.CancelAfter(MdnsTimeoutMs);
+
+                    var res = await udp.ReceiveAsync(cts.Token).ConfigureAwait(false);
+                    string name = ParseDnsPtrResponse(res.Buffer);
+                    if (!string.IsNullOrEmpty(name))
+                    {
+                        _hostnameCache.TryAdd(cacheKey, name);
+                        return name;
+                    }
+                }
+            }
+            catch { }
+
+            _hostnameCache.TryAdd(cacheKey, string.Empty);
+            return null;
+        }
+
+        // ──────────────────────────────────────────────
+        //  Active LLMNR Probe (UDP port 5355)
+        // ──────────────────────────────────────────────
+
+        private async Task<string> ProbeLlmnrAsync(IPAddress ip, CancellationToken ct)
+        {
+            string cacheKey = $"llmnr_{ip}";
+            if (_hostnameCache.TryGetValue(cacheKey, out string cached)) return cached;
+
+            try
+            {
+                using var udp = new UdpClient();
+                udp.Client.ReceiveTimeout = LlmnrTimeoutMs;
+
+                byte[] query = BuildDnsPtrQuery(ip, 0x1337);
+                if (query != null)
+                {
+                    var endpoint = new IPEndPoint(ip, 5355);
+                    await udp.SendAsync(query, query.Length, endpoint).ConfigureAwait(false);
+
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    cts.CancelAfter(LlmnrTimeoutMs);
+
+                    var res = await udp.ReceiveAsync(cts.Token).ConfigureAwait(false);
+                    string name = ParseDnsPtrResponse(res.Buffer);
+                    if (!string.IsNullOrEmpty(name))
+                    {
+                        _hostnameCache.TryAdd(cacheKey, name);
+                        return name;
+                    }
+                }
+            }
+            catch { }
+
+            _hostnameCache.TryAdd(cacheKey, string.Empty);
+            return null;
+        }
+
+        // ──────────────────────────────────────────────
+        //  DNS / mDNS / LLMNR Packet Helpers
+        // ──────────────────────────────────────────────
+
+        private static byte[] BuildDnsPtrQuery(IPAddress ip, ushort transactionId)
+        {
+            byte[] ipBytes = ip.GetAddressBytes();
+            if (ipBytes.Length != 4) return null;
+
+            string[] labels = new string[]
+            {
+                ipBytes[3].ToString(),
+                ipBytes[2].ToString(),
+                ipBytes[1].ToString(),
+                ipBytes[0].ToString(),
+                "in-addr",
+                "arpa"
+            };
+
+            using var ms = new MemoryStream();
+            using var writer = new BinaryWriter(ms);
+
+            writer.Write((byte)(transactionId >> 8));
+            writer.Write((byte)(transactionId & 0xFF));
+            writer.Write((byte)0x00); // Flags
+            writer.Write((byte)0x00);
+            writer.Write((byte)0x00); // QDCOUNT: 1
+            writer.Write((byte)0x01);
+            writer.Write((byte)0x00); // ANCOUNT: 0
+            writer.Write((byte)0x00);
+            writer.Write((byte)0x00); // NSCOUNT: 0
+            writer.Write((byte)0x00);
+            writer.Write((byte)0x00); // ARCOUNT: 0
+            writer.Write((byte)0x00);
+
+            foreach (var label in labels)
+            {
+                byte[] bytes = Encoding.ASCII.GetBytes(label);
+                writer.Write((byte)bytes.Length);
+                writer.Write(bytes);
+            }
+            writer.Write((byte)0x00);
+
+            writer.Write((byte)0x00); // Type: PTR (12)
+            writer.Write((byte)0x0C);
+            writer.Write((byte)0x00); // Class: IN (1)
+            writer.Write((byte)0x01);
+
+            return ms.ToArray();
+        }
+
+        private static string ParseDnsPtrResponse(byte[] data)
+        {
+            if (data == null || data.Length < 12) return null;
+
+            try
+            {
+                int qdCount = (data[4] << 8) | data[5];
+                int anCount = (data[6] << 8) | data[7];
+                if (anCount == 0) return null;
+
+                int pos = 12;
+
+                for (int q = 0; q < qdCount && pos < data.Length; q++)
+                {
+                    pos = SkipDnsName(data, pos);
+                    pos += 4;
+                }
+
+                for (int a = 0; a < anCount && pos < data.Length; a++)
+                {
+                    pos = SkipDnsName(data, pos);
+                    if (pos + 10 > data.Length) break;
+
+                    ushort type = (ushort)((data[pos] << 8) | data[pos + 1]);
+                    pos += 2;
+                    ushort cls = (ushort)((data[pos] << 8) | data[pos + 1]);
+                    pos += 2;
+                    pos += 4;
+                    ushort rdLength = (ushort)((data[pos] << 8) | data[pos + 1]);
+                    pos += 2;
+
+                    if (type == 12) // PTR
+                    {
+                        string ptrName = ReadDnsName(data, pos);
+                        if (!string.IsNullOrEmpty(ptrName))
+                        {
+                            return CleanHostname(ptrName);
+                        }
+                    }
+
+                    pos += rdLength;
+                }
+            }
+            catch { }
+
+            return null;
+        }
+
+        private static int SkipDnsName(byte[] data, int pos)
+        {
+            int safety = 0;
+            while (pos < data.Length && safety++ < 50)
+            {
+                byte len = data[pos];
+                if (len == 0) return pos + 1;
+                if ((len & 0xC0) == 0xC0) return pos + 2;
+                pos += 1 + len;
+            }
+            return pos;
+        }
+
+        private static string ReadDnsName(byte[] data, int startPos)
+        {
+            var sb = new StringBuilder();
+            int pos = startPos;
+            int safety = 0;
+
+            while (pos < data.Length && safety++ < 50)
+            {
+                byte len = data[pos];
+                if (len == 0) break;
+
+                if ((len & 0xC0) == 0xC0)
+                {
+                    if (pos + 1 >= data.Length) break;
+                    int offset = ((len & 0x3F) << 8) | data[pos + 1];
+                    if (offset < startPos || offset < data.Length)
+                    {
+                        string target = ReadDnsName(data, offset);
+                        if (!string.IsNullOrEmpty(target))
+                        {
+                            if (sb.Length > 0) sb.Append('.');
+                            sb.Append(target);
+                        }
+                    }
+                    break;
+                }
+
+                pos++;
+                if (pos + len > data.Length) break;
+
+                if (sb.Length > 0) sb.Append('.');
+                sb.Append(Encoding.ASCII.GetString(data, pos, len));
+                pos += len;
+            }
+
+            return sb.ToString();
+        }
+
+        private static string CleanHostname(string fullName)
+        {
+            if (string.IsNullOrEmpty(fullName)) return null;
+
+            int serviceIdx = fullName.IndexOf("._", StringComparison.Ordinal);
+            if (serviceIdx > 0) fullName = fullName.Substring(0, serviceIdx);
+
+            if (fullName.EndsWith(".local", StringComparison.OrdinalIgnoreCase))
+                fullName = fullName.Substring(0, fullName.Length - 6);
+            else if (fullName.EndsWith(".lan", StringComparison.OrdinalIgnoreCase))
+                fullName = fullName.Substring(0, fullName.Length - 4);
+            else if (fullName.EndsWith(".home", StringComparison.OrdinalIgnoreCase))
+                fullName = fullName.Substring(0, fullName.Length - 5);
+
+            return fullName.Trim();
         }
 
         // ──────────────────────────────────────────────
@@ -543,66 +787,85 @@ namespace SelfishNet
             string vendor = device.Vendor ?? string.Empty;
             string hostname = device.Hostname ?? string.Empty;
 
-            // Check hostname keywords first (more specific)
-            if (ContainsAny(hostname, "iPhone", "iPad", "Galaxy", "Redmi", "POCO", "Pixel"))
+            // 1. Check hostname keywords first (more specific)
+            if (ContainsAny(hostname, "-TV", "SmartTV", "BRAVIA", "Roku", "Fire-TV", "FireTV", "Chromecast", "AppleTV", "Apple-TV", "Tizen", "WebOS", "Shield", "AndroidTV", "GoogleTV", "MiBox", "Vizio", "Hisense", "TCL", "Panasonic-TV", "Sharp-TV", "Smart-TV"))
+                return DeviceType.SmartTV;
+
+            if (ContainsAny(hostname, "PlayStation", "PS3", "PS4", "PS5", "Xbox", "Switch", "Nintendo", "SteamDeck"))
+                return DeviceType.Console;
+
+            if (ContainsAny(hostname, "iPhone", "Galaxy", "Redmi", "POCO", "Pixel", "Xperia", "Huawei", "Honor", "OnePlus", "Moto", "Realme", "Android"))
                 return DeviceType.Mobile;
 
-            if (ContainsAny(hostname, "MacBook", "iMac", "DESKTOP-", "LAPTOP-", "Surface"))
+            if (ContainsAny(hostname, "iPad", "Tab", "MediaPad", "MatePad", "Kindle"))
+                return DeviceType.Tablet;
+
+            if (ContainsAny(hostname, "MacBook", "iMac", "Macmini", "MacPro", "DESKTOP-", "LAPTOP-", "PC-", "Surface", "ThinkPad", "Latitude", "Inspiron", "Precision", "EliteBook", "ProBook", "OptiPlex", "Workstation"))
                 return DeviceType.Desktop;
 
-            if (ContainsAny(hostname, "-TV", "SmartTV", "BRAVIA", "Roku", "Fire-TV", "Chromecast"))
-                return DeviceType.SmartTV;
-
-            if (ContainsAny(hostname, "PlayStation", "Xbox", "Switch"))
-                return DeviceType.Console;
-
-            if (ContainsAny(hostname, "printer", "LaserJet", "DeskJet", "EPSON", "Canon"))
+            if (ContainsAny(hostname, "printer", "LaserJet", "DeskJet", "OfficeJet", "EPSON", "Canon", "Brother", "Kyocera", "Xerox", "Ricoh", "Pantum"))
                 return DeviceType.Printer;
 
-            // Check vendor keywords
-            if (ContainsAny(vendor, "Nintendo"))
-                return DeviceType.Console;
+            if (ContainsAny(hostname, "router", "gateway", "accesspoint", "ap-", "switch", "modem", "unifi", "amplifi", "mikrotik", "openwrt", "pfsense"))
+                return DeviceType.NetworkInfra;
 
-            if (ContainsAny(vendor, "Sony Interactive"))
-                return DeviceType.Console;
-
-            if (ContainsAny(vendor, "Roku"))
-                return DeviceType.SmartTV;
-
-            if (ContainsAny(vendor, "LG Electronics") && ContainsAny(hostname, "TV", "webOS"))
-                return DeviceType.SmartTV;
-
-            if (ContainsAny(vendor, "Sonos"))
+            if (ContainsAny(hostname, "sonos", "echo", "alexa", "nest", "homepod", "hue", "lifx", "tuya", "shelly", "esp32", "esp8266", "espressif", "raspberrypi", "arduino", "ring", "wyze", "blink", "tapo", "ezviz", "smart", "plug", "bulb", "light", "thermostat", "vacuum", "camera", "cam-"))
                 return DeviceType.IoT;
 
-            if (ContainsAny(vendor, "Espressif", "Tuya", "Raspberry Pi"))
+            // 2. Check vendor keywords
+            if (ContainsAny(vendor, "Nintendo", "Sony Interactive", "Valve"))
+                return DeviceType.Console;
+
+            if (ContainsAny(vendor, "Roku", "Vizio", "TCL", "Hisense"))
+                return DeviceType.SmartTV;
+
+            if (ContainsAny(vendor, "LG Electronics") && ContainsAny(hostname, "TV", "webOS", "LG"))
+                return DeviceType.SmartTV;
+
+            if (ContainsAny(vendor, "Sonos", "Espressif", "Tuya", "Raspberry Pi", "Nest Labs", "Ring LLC", "Zengge", "Yeelight", "Signify"))
                 return DeviceType.IoT;
 
             if (ContainsAny(vendor, "Ubiquiti", "Cisco", "NETGEAR", "TP-Link", "D-Link",
                             "Arris", "ZTE", "Sagemcom", "Aruba", "Arcadyan", "Technicolor",
-                            "Zhone/DZS", "Dasan", "CIG/Shanghai Bell"))
+                            "Zhone/DZS", "Dasan", "CIG/Shanghai Bell", "AVM", "MikroTik"))
                 return DeviceType.NetworkInfra;
 
-            if (ContainsAny(vendor, "Zengge", "LED"))
-                return DeviceType.IoT;
-
-            if (ContainsAny(vendor, "HP", "Epson", "Canon") && !ContainsAny(hostname, "DESKTOP", "LAPTOP"))
+            if (ContainsAny(vendor, "HP", "Epson", "Canon", "Brother", "Kyocera", "Xerox", "Ricoh") && !ContainsAny(hostname, "DESKTOP", "LAPTOP", "PC"))
                 return DeviceType.Printer;
 
             if (ContainsAny(vendor, "Apple"))
-                return DeviceType.Mobile; // Default Apple to mobile (most common)
-
-            if (ContainsAny(vendor, "Samsung", "Xiaomi", "Huawei", "OnePlus", "OPPO", "Vivo"))
+            {
+                if (ContainsAny(hostname, "MacBook", "iMac", "Mac")) return DeviceType.Desktop;
+                if (ContainsAny(hostname, "iPad")) return DeviceType.Tablet;
+                if (ContainsAny(hostname, "TV")) return DeviceType.SmartTV;
+                if (ContainsAny(hostname, "HomePod")) return DeviceType.IoT;
                 return DeviceType.Mobile;
+            }
 
-            if (ContainsAny(vendor, "Intel", "Realtek", "Dell", "Lenovo", "Microsoft"))
+            if (ContainsAny(vendor, "Samsung", "Xiaomi", "Huawei", "OnePlus", "OPPO", "Vivo", "Motorola", "Transsion"))
+            {
+                if (ContainsAny(hostname, "TV", "Tizen")) return DeviceType.SmartTV;
+                return DeviceType.Mobile;
+            }
+
+            if (ContainsAny(vendor, "Intel", "Realtek", "Dell", "Lenovo", "Microsoft", "ASUSTek", "Acer", "MSI", "Gigabyte"))
+            {
+                if (ContainsAny(hostname, "Xbox")) return DeviceType.Console;
                 return DeviceType.Desktop;
+            }
 
             if (ContainsAny(vendor, "Amazon"))
+            {
+                if (ContainsAny(hostname, "Fire-TV", "FireTV", "AFT")) return DeviceType.SmartTV;
                 return DeviceType.IoT;
+            }
 
             if (ContainsAny(vendor, "Google"))
+            {
+                if (ContainsAny(hostname, "Chromecast", "GoogleTV")) return DeviceType.SmartTV;
+                if (ContainsAny(hostname, "Pixel")) return DeviceType.Mobile;
                 return DeviceType.IoT;
+            }
 
             return DeviceType.Unknown;
         }

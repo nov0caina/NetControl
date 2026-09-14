@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Threading;
@@ -571,25 +572,26 @@ namespace SelfishNet
             }
         }
 
+        private const double TrafficEmaAlpha = 0.65;
+
         private void TrafficMonitorLoop()
         {
-            try
+            while (_isMonitoringTraffic)
             {
-                while (_isMonitoringTraffic)
+                try
                 {
                     IReadOnlyList<PC> snapshot = _pcList.Devices;
                     if (snapshot.Count == 0)
                     {
-                        Thread.Sleep(1000);
+                        Thread.Sleep(500);
                         continue;
                     }
 
-                    // Reset counters for this cycle and build fast O(1) integer IP map
+                    // Reset accumulators for this cycle and build fast O(1) integer IP map
                     var ipToPc = new Dictionary<uint, PC>();
                     foreach (PC pc in snapshot)
                     {
-                        pc.BytesReceived = 0;
-                        pc.BytesSent = 0;
+                        pc.ResetByteAccumulators();
                         if (pc.Ip != null)
                         {
                             byte[] ipBytes = pc.Ip.GetAddressBytes();
@@ -601,9 +603,9 @@ namespace SelfishNet
                         }
                     }
 
-                    // Capture for 1 second using the dedicated traffic device
-                    DateTime cycleEnd = DateTime.Now.AddSeconds(1);
-                    while (DateTime.Now < cycleEnd && _isMonitoringTraffic)
+                    // Capture using high-precision Stopwatch timing (1000 ms target window)
+                    long startTicks = Stopwatch.GetTimestamp();
+                    while (_isMonitoringTraffic && Stopwatch.GetElapsedTime(startTicks).TotalMilliseconds < 1000)
                     {
                         PacketCapture pCapture;
                         var status = _trafficDevice.GetNextPacket(out pCapture);
@@ -612,7 +614,7 @@ namespace SelfishNet
                         var raw = pCapture.GetPacket()?.Data;
                         if (raw == null || raw.Length < 34) continue;
 
-                        // Check for IP packet (EtherType 0x0800)
+                        // Check for IPv4 packet (EtherType 0x0800)
                         if (raw[12] != 0x08 || raw[13] != 0x00) continue;
 
                         uint srcIpUint = (uint)((raw[26] << 24) | (raw[27] << 16) | (raw[28] << 8) | raw[29]);
@@ -621,44 +623,73 @@ namespace SelfishNet
                         int packetSize = raw.Length;
 
                         // Fast O(1) matching by integer IP
+                        // srcIp matches -> device sent this packet (Egress / Upload)
                         if (ipToPc.TryGetValue(srcIpUint, out var srcPc))
                         {
-                            srcPc.BytesSent += packetSize;
+                            srcPc.AddBytesSent(packetSize);
                         }
+                        // dstIp matches -> device received this packet (Ingress / Download)
                         if (ipToPc.TryGetValue(dstIpUint, out var dstPc))
                         {
-                            dstPc.BytesReceived += packetSize;
+                            dstPc.AddBytesReceived(packetSize);
                         }
                     }
 
-                    // Update speed display properties
+                    // Compute exact elapsed duration for rate calculation
+                    double elapsedSeconds = Stopwatch.GetElapsedTime(startTicks).TotalSeconds;
+                    if (elapsedSeconds <= 0.001) elapsedSeconds = 1.0;
+
+                    // Update smoothed transfer rates per device
                     foreach (PC pc in snapshot)
                     {
-                        double downloadKBs = pc.BytesReceived / 1024.0;
-                        double uploadKBs = pc.BytesSent / 1024.0;
-                        string speed = $"↓{FormatSpeed(downloadKBs)} ↑{FormatSpeed(uploadKBs)}";
-                        if (pc.DownloadSpeed != speed)
+                        long rxBytes = pc.BytesReceived;
+                        long txBytes = pc.BytesSent;
+
+                        double measuredDownKbps = (rxBytes / 1024.0) / elapsedSeconds;
+                        double measuredUpKbps = (txBytes / 1024.0) / elapsedSeconds;
+
+                        double prevDown = pc.DownloadSpeedKbps;
+                        double prevUp = pc.UploadSpeedKbps;
+
+                        // Apply Exponential Moving Average (EMA) with alpha = 0.65
+                        // When no bytes transferred in this cycle, smoothly decay to 0 KB/s
+                        double smoothedDown;
+                        if (rxBytes == 0)
                         {
-                            pc.DownloadSpeed = speed;
+                            smoothedDown = (1.0 - TrafficEmaAlpha) * prevDown;
+                            if (smoothedDown < 0.1) smoothedDown = 0.0;
                         }
+                        else
+                        {
+                            smoothedDown = (TrafficEmaAlpha * measuredDownKbps) + ((1.0 - TrafficEmaAlpha) * prevDown);
+                        }
+
+                        double smoothedUp;
+                        if (txBytes == 0)
+                        {
+                            smoothedUp = (1.0 - TrafficEmaAlpha) * prevUp;
+                            if (smoothedUp < 0.1) smoothedUp = 0.0;
+                        }
+                        else
+                        {
+                            smoothedUp = (TrafficEmaAlpha * measuredUpKbps) + ((1.0 - TrafficEmaAlpha) * prevUp);
+                        }
+
+                        pc.UpdateTransferRates(smoothedDown, smoothedUp);
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                if (_isMonitoringTraffic)
+                catch (Exception ex)
                 {
-                    Console.WriteLine($"[TRAFFIC ERROR] {ex.Message}");
+                    if (_isMonitoringTraffic)
+                    {
+                        Console.WriteLine($"[TRAFFIC ERROR] {ex.Message}");
+                        Thread.Sleep(500);
+                    }
                 }
             }
         }
 
-        private static string FormatSpeed(double kbs)
-        {
-            if (kbs < 0.1) return "0 KB/s";
-            if (kbs >= 1024) return $"{kbs / 1024:F1} MB/s";
-            return $"{kbs:F1} KB/s";
-        }
+        private static string FormatSpeed(double kbs) => PC.FormatSpeed(kbs);
 
         // ──────────────────────────────────────────────
         //  ARP Packet Construction
