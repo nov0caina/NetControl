@@ -1,12 +1,12 @@
 @echo off
 REM ═══════════════════════════════════════════════════════
-REM  SelfishNet — Windows Installer
+REM  NetControl - Windows Installer
 REM  Checks for .NET 8 SDK, Npcap, and builds the project
 REM ═══════════════════════════════════════════════════════
 
 echo.
 echo ╔══════════════════════════════════════╗
-echo ║   SelfishNet — Windows Installer     ║
+echo ║   NetControl - Windows Installer     ║
 echo ╚══════════════════════════════════════╝
 echo.
 
@@ -62,7 +62,7 @@ if exist "C:\Windows\System32\Npcap\wpcap.dll" (
 )
 
 REM ── Build project ──
-echo [3/3] Building SelfishNet...
+echo [3/3] Building NetControl...
 cd /d "%~dp0SelfishNet"
 dotnet restore
 dotnet build --configuration Release
@@ -78,7 +78,7 @@ echo ╔════════════════════════
 echo ║   [OK] Installation complete!        ║
 echo ╚══════════════════════════════════════╝
 echo.
-echo Run start_windows.bat to launch SelfishNet.
+echo Run start_windows.bat to launch NetControl.
 echo Note: Requires Administrator privileges.
 echo.
 pause
