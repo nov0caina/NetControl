@@ -82,12 +82,7 @@
                         <Image Source="/Assets/app_icon.png" Width="34" Height="34" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <StackPanel VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="NetControl" FontWeight="Bold" FontSize="15" Foreground="{StaticResource TextPrimaryBrush}"/>
-                            <Border Background="{StaticResource CardBackgroundElevatedBrush}" CornerRadius="4" Padding="4,1" VerticalAlignment="Center">
-                                <TextBlock Text="v2.0" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}"/>
-                            </Border>
-                        </StackPanel>
+                        <TextBlock Text="NetControl" FontWeight="Bold" FontSize="15" Foreground="{StaticResource TextPrimaryBrush}"/>
                         <TextBlock Text="ARP Engine &amp; Traffic Controller" FontSize="11" Foreground="{StaticResource TextMutedBrush}"/>
                     </StackPanel>
                 </StackPanel>

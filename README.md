@@ -1,4 +1,4 @@
-# NetControl v2.0
+# NetControl
 
 Cross-platform network bandwidth diagnostics, device discovery, and ARP traffic management for local networks. The modern successor to SelfishNet, built with .NET 8 and Avalonia UI.
 
@@ -14,7 +14,7 @@ Cross-platform network bandwidth diagnostics, device discovery, and ARP traffic 
 
 NetControl has been redesigned from the ground up to remove legacy Windows-only dependencies (.NET Framework 3.5, WinForms, WinPcap, and `user32.dll` P/Invoke calls) in favor of a modern, multi-platform runtime.
 
-| Component | Legacy SelfishNet | NetControl (v2.0+) |
+| Component | Legacy SelfishNet | NetControl |
 | :--- | :--- | :--- |
 | **Runtime Framework** | .NET Framework 3.5 (Windows only) | **.NET 8.0 (LTS)** |
 | **User Interface** | Windows Forms (WinForms) | **Avalonia UI** (Cross-platform XAML) |
@@ -31,7 +31,7 @@ Standalone release archives do **not** require the .NET SDK or runtime to be pre
 
 ### 1. Linux (x86_64)
 
-- **Package:** `NetControl-v2.0-linux-x64.tar.gz`
+- **Package:** `NetControl-linux-x64.tar.gz`
 - **Prerequisites:**
   - `libpcap` runtime (installed by default on most distributions; on Ubuntu/Debian: `sudo apt install libpcap0.8` or `sudo apt install libpcap-dev`).
 - **Execution:**
@@ -65,13 +65,13 @@ Standalone release archives do **not** require the .NET SDK or runtime to be pre
 
 ### 2. Windows (x86_64)
 
-- **Package:** `NetControl-v2.0-windows-x64.zip`
+- **Package:** `NetControl-windows-x64.zip`
 - **Prerequisites:**
   - **Npcap Driver:** Download and install Npcap from [npcap.com](https://npcap.com).
   - **CRITICAL:** During the Npcap installation wizard, you must check the option:
     **"Install Npcap in WinPcap API-compatible Mode"**. This ensures `wpcap.dll` and `packet.dll` are accessible to SharpPcap.
 - **Execution:**
-  1. Extract `NetControl-v2.0-windows-x64.zip`.
+  1. Extract `NetControl-windows-x64.zip`.
   2. Right-click on `NetControl.exe`.
   3. Select **"Run as administrator"**. Elevated User Account Control (UAC) permissions are mandatory on Windows to open raw network adapters.
 
@@ -80,15 +80,15 @@ Standalone release archives do **not** require the .NET SDK or runtime to be pre
 ### 3. macOS (Apple Silicon arm64 & Intel x64)
 
 - **Packages:**
-  - Apple Silicon (M1, M2, M3, M4): `NetControl-v2.0-macos-arm64.tar.gz`
-  - Intel x86_64: `NetControl-v2.0-macos-x64.tar.gz`
+  - Apple Silicon (M1, M2, M3, M4): `NetControl-macos-arm64.tar.gz`
+  - Intel x86_64: `NetControl-macos-x64.tar.gz`
 - **Prerequisites:**
   - macOS 11.0 (Big Sur) or later.
   - Native Berkeley Packet Filter (BPF) capture requires root access.
 - **Execution:**
   1. Extract the archive:
      ```bash
-     tar -xzf NetControl-v2.0-macos-arm64.tar.gz
+     tar -xzf NetControl-macos-arm64.tar.gz
      cd dist/osx-arm64
      ```
   2. If macOS Gatekeeper marks the unnotarized binary as quarantined:
@@ -120,7 +120,7 @@ Verify the integrity of downloaded distribution packages using SHA-256:
   ```
 - **Windows (PowerShell):**
   ```powershell
-  Get-FileHash .\NetControl-v2.0-windows-x64.zip -Algorithm SHA256
+  Get-FileHash .\NetControl-windows-x64.zip -Algorithm SHA256
   ```
 
 ---
@@ -177,7 +177,7 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 _____________________________________________________________________________________________________________________________________
 
-# NetControl v2.0 (Guia en Espanol)
+# NetControl (Guia en Espanol)
 
 Herramienta multiplataforma para diagnostico de ancho de banda, descubrimiento de dispositivos y gestion de trafico ARP en redes locales. El sucesor moderno de SelfishNet, desarrollada con .NET 8 y Avalonia UI.
 
@@ -193,7 +193,7 @@ Herramienta multiplataforma para diagnostico de ancho de banda, descubrimiento d
 
 NetControl fue redisenado completamente para eliminar las dependencias heredadas exclusivas de Windows (.NET Framework 3.5, WinForms, WinPcap y llamadas P/Invoke a `user32.dll`) reemplazandolas por una arquitectura moderna y verdaderamente multiplataforma.
 
-| Componente | SelfishNet Original (Legacy) | NetControl (v2.0+) |
+| Componente | SelfishNet Original (Legacy) | NetControl |
 | :--- | :--- | :--- |
 | **Framework Base** | .NET Framework 3.5 (Solo Windows) | **.NET 8.0 (LTS)** |
 | **Interfaz de Usuario** | Windows Forms (WinForms) | **Avalonia UI** (XAML Multiplataforma) |
@@ -210,7 +210,7 @@ Los paquetes de distribucion precompilados **no** requieren tener instalado el S
 
 ### 1. Linux (x86_64)
 
-- **Paquete:** `NetControl-v2.0-linux-x64.tar.gz`
+- **Paquete:** `NetControl-linux-x64.tar.gz`
 - **Prerrequisitos:**
   - Libreria `libpcap` (instalada por defecto en la gran mayoria de distribuciones; en Ubuntu/Debian: `sudo apt install libpcap0.8` o `sudo apt install libpcap-dev`).
 - **Ejecucion:**
@@ -244,13 +244,13 @@ Los paquetes de distribucion precompilados **no** requieren tener instalado el S
 
 ### 2. Windows (x86_64)
 
-- **Paquete:** `NetControl-v2.0-windows-x64.zip`
+- **Paquete:** `NetControl-windows-x64.zip`
 - **Prerrequisitos:**
   - **Driver Npcap:** Descargar e instalar Npcap desde [npcap.com](https://npcap.com).
   - **IMPORTANTE:** Durante la instalacion, debes marcar obligatoriamente la casilla:
     **"Install Npcap in WinPcap API-compatible Mode"**. Esto provee los controladores `wpcap.dll` y `packet.dll` necesarios para SharpPcap.
 - **Ejecucion:**
-  1. Descomprime `NetControl-v2.0-windows-x64.zip`.
+  1. Descomprime `NetControl-windows-x64.zip`.
   2. Haz clic derecho sobre `NetControl.exe`.
   3. Selecciona **"Ejecutar como administrador"** (es imprescindible contar con permisos elevados UAC para acceder a las interfaces de red en Windows).
 
@@ -259,15 +259,15 @@ Los paquetes de distribucion precompilados **no** requieren tener instalado el S
 ### 3. macOS (Apple Silicon arm64 e Intel x64)
 
 - **Paquetes:**
-  - Apple Silicon (M1, M2, M3, M4): `NetControl-v2.0-macos-arm64.tar.gz`
-  - Intel x86_64: `NetControl-v2.0-macos-x64.tar.gz`
+  - Apple Silicon (M1, M2, M3, M4): `NetControl-macos-arm64.tar.gz`
+  - Intel x86_64: `NetControl-macos-x64.tar.gz`
 - **Prerrequisitos:**
   - macOS 11.0 (Big Sur) o superior.
   - Permisos de superusuario para acceso a los dispositivos de captura BPF (Berkeley Packet Filter).
 - **Ejecucion:**
   1. Descomprime el paquete:
      ```bash
-     tar -xzf NetControl-v2.0-macos-arm64.tar.gz
+     tar -xzf NetControl-macos-arm64.tar.gz
      cd dist/osx-arm64
      ```
   2. Si macOS Gatekeeper bloquea el binario por no estar notarizado:
@@ -299,7 +299,7 @@ Verifica la autenticidad e integridad de los paquetes descargados con SHA-256:
   ```
 - **Windows (PowerShell):**
   ```powershell
-  Get-FileHash .\NetControl-v2.0-windows-x64.zip -Algorithm SHA256
+  Get-FileHash .\NetControl-windows-x64.zip -Algorithm SHA256
   ```
 
 ---
