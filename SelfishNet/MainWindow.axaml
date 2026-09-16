@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="SelfishNet.MainWindow"
-        Title="SelfishNet — Network Traffic Management"
+        Title="NetControl - Network Traffic Management"
         Icon="/Assets/app_icon.ico"
         Width="980" Height="620"
         MinWidth="860" MinHeight="540"
@@ -54,7 +54,7 @@
                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <TextBlock Grid.Column="1"
-                               Text="Notice: SelfishNet is intended exclusively for authorized network diagnostics, lab security evaluations, and educational research. Unauthorized ARP redirection is strictly prohibited on non-owned infrastructure."
+                               Text="Notice: NetControl is intended exclusively for authorized network diagnostics, lab security evaluations, and educational research. Unauthorized ARP redirection is strictly prohibited on non-owned infrastructure."
                                FontSize="11.5"
                                Foreground="{StaticResource TextSecondaryBrush}"
                                VerticalAlignment="Center"
@@ -83,7 +83,7 @@
                     </Border>
                     <StackPanel VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="SelfishNet" FontWeight="Bold" FontSize="15" Foreground="{StaticResource TextPrimaryBrush}"/>
+                            <TextBlock Text="NetControl" FontWeight="Bold" FontSize="15" Foreground="{StaticResource TextPrimaryBrush}"/>
                             <Border Background="{StaticResource CardBackgroundElevatedBrush}" CornerRadius="4" Padding="4,1" VerticalAlignment="Center">
                                 <TextBlock Text="v2.0" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}"/>
                             </Border>

@@ -66,10 +66,10 @@ namespace SelfishNet
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                return "Please restart SelfishNet with 'Run as administrator' to enable packet capture and ARP redirection.";
+                return "Please restart NetControl with 'Run as administrator' to enable packet capture and ARP redirection.";
             }
 
-            return "Launch with 'pkexec' or 'sudo -E ./SelfishNet', or grant raw socket capabilities via 'sudo setcap cap_net_raw,cap_net_admin=eip <binary>'.";
+            return "Launch with 'pkexec' or 'sudo -E ./NetControl', or grant raw socket capabilities via 'sudo setcap cap_net_raw,cap_net_admin=eip <binary>'.";
         }
     }
 }

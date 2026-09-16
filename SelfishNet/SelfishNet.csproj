@@ -7,6 +7,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <ApplicationIcon>Assets/app_icon.ico</ApplicationIcon>
+    <AssemblyName>NetControl</AssemblyName>
+    <Product>NetControl</Product>
+    <Title>NetControl</Title>
+    <Description>Cross-platform network bandwidth diagnostics, device discovery, and ARP traffic management (successor to SelfishNet).</Description>
   </PropertyGroup>
 
   <ItemGroup>

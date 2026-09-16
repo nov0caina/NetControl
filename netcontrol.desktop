@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=NetControl
+GenericName=Network Traffic Manager
+Comment=Cross-platform bandwidth diagnostics, device discovery, and ARP traffic management
+Icon=netcontrol
+Exec=sh -c "pkexec env DISPLAY=\$DISPLAY XAUTHORITY=\$XAUTHORITY /usr/local/bin/NetControl"
+Terminal=false
+Categories=Network;Security;
+Keywords=network;arp;traffic;bandwidth;monitor;bandwidth-limiter;
+StartupNotify=true
+
