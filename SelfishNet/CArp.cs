@@ -44,6 +44,11 @@ namespace SelfishNet
         /// <summary>Indicates whether the gateway was inferred (fallback) instead of detected.</summary>
         public bool IsGatewayInferred { get; private set; }
 
+        /// <summary>Triggered when the underlying physical interface is disconnected or drops connectivity.</summary>
+        public event Action<string> OnInterfaceDisconnected;
+
+        private long _lastNetworkChangeTimestamp = 0;
+
         public CArp(LibPcapLiveDevice nic, PcList pcList)
         {
             _pcList = pcList;
@@ -132,6 +137,17 @@ namespace SelfishNet
 
             // Observe per-device bandwidth limit and redirect updates
             _pcList.SetOnDeviceAdded(OnDeviceAddedForThrottling);
+
+            // Subscribe to network interface state changes
+            try
+            {
+                NetworkChange.NetworkAvailabilityChanged += OnNetworkAvailabilityChanged;
+                NetworkChange.NetworkAddressChanged += OnNetworkAddressChanged;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[NETWORK CHANGE INIT ERROR] {ex.Message}");
+            }
         }
 
         private void OnDeviceAddedForThrottling(PC pc)
@@ -788,8 +804,94 @@ namespace SelfishNet
             _pcList?.Clear();
         }
 
+        /// <summary>
+        /// Halts all active engine threads (discovery, spoofing, traffic monitoring, and listener) cleanly.
+        /// </summary>
+        public void StopAll()
+        {
+            StopDiscovery();
+            StopSpoofing();
+            StopTrafficMonitor();
+            StopArpListener();
+        }
+
+        private void OnNetworkAvailabilityChanged(object sender, NetworkAvailabilityEventArgs e)
+        {
+            if (!e.IsAvailable)
+            {
+                HandleNetworkInterruption("Network connection lost (availability down).");
+            }
+        }
+
+        private void OnNetworkAddressChanged(object sender, EventArgs e)
+        {
+            // Debounce: ignore events fired within 500ms of each other
+            long now = Stopwatch.GetTimestamp();
+            double elapsedMs = (now - Interlocked.Read(ref _lastNetworkChangeTimestamp)) * 1000.0 / Stopwatch.Frequency;
+            if (elapsedMs < 500)
+            {
+                return;
+            }
+            Interlocked.Exchange(ref _lastNetworkChangeTimestamp, now);
+
+            bool isDeviceStillActive = false;
+            try
+            {
+                var interfaces = NetworkInterface.GetAllNetworkInterfaces();
+                foreach (var nic in interfaces)
+                {
+                    if (nic.Name == _device?.Name || nic.Description == _device?.Description)
+                    {
+                        if (nic.OperationalStatus == OperationalStatus.Up)
+                        {
+                            var ipProps = nic.GetIPProperties();
+                            foreach (var uni in ipProps.UnicastAddresses)
+                            {
+                                if (uni.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                                {
+                                    isDeviceStillActive = true;
+                                    break;
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+            catch
+            {
+                isDeviceStillActive = true;
+            }
+
+            if (!isDeviceStillActive)
+            {
+                HandleNetworkInterruption("Monitored interface disconnected or IPv4 address revoked.");
+            }
+        }
+
+        private void HandleNetworkInterruption(string reason)
+        {
+            try
+            {
+                Console.WriteLine($"[NETWORK RESILIENCE] {reason}");
+                StopAll();
+                OnInterfaceDisconnected?.Invoke(reason);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[NETWORK RESILIENCE ERROR] {ex.Message}");
+            }
+        }
+
         public void Dispose()
         {
+            try
+            {
+                NetworkChange.NetworkAvailabilityChanged -= OnNetworkAvailabilityChanged;
+                NetworkChange.NetworkAddressChanged -= OnNetworkAddressChanged;
+            }
+            catch { }
+
             _isListeningArp = false;
             _isDiscovering = false;
             _isSpoofing = false;

@@ -62,10 +62,42 @@ namespace SelfishNet
             set { if (_gatewayIpDisplay != value) { _gatewayIpDisplay = value; OnPropertyChanged(); } }
         }
 
+        // ── Warning & Disclaimer Banner Properties ──
+
+        private bool _isElevationWarningVisible;
+        public bool IsElevationWarningVisible
+        {
+            get => _isElevationWarningVisible;
+            set { if (_isElevationWarningVisible != value) { _isElevationWarningVisible = value; OnPropertyChanged(); } }
+        }
+
+        private string _elevationGuidance = string.Empty;
+        public string ElevationGuidance
+        {
+            get => _elevationGuidance;
+            set { if (_elevationGuidance != value) { _elevationGuidance = value; OnPropertyChanged(); } }
+        }
+
+        private bool _isDisclaimerVisible = true;
+        public bool IsDisclaimerVisible
+        {
+            get => _isDisclaimerVisible;
+            set { if (_isDisclaimerVisible != value) { _isDisclaimerVisible = value; OnPropertyChanged(); } }
+        }
+
         public MainWindow()
         {
             InitializeComponent();
             DataContext = this;
+
+            // Proactively verify privileges and capabilities
+            bool elevated = PrivilegeDetector.IsElevated();
+            bool hasCaps = PrivilegeDetector.HasCaptureCapabilities();
+            if (!elevated && !hasCaps)
+            {
+                IsElevationWarningVisible = true;
+                ElevationGuidance = PrivilegeDetector.GetElevationGuidance();
+            }
 
             DetectedPCs = new ObservableCollection<PC>();
             DetectedPCs.CollectionChanged += OnDetectedPcsCollectionChanged;
@@ -78,7 +110,26 @@ namespace SelfishNet
 
             AppDomain.CurrentDomain.ProcessExit += (s, e) => Cleanup();
 
+            try
+            {
+                System.Net.NetworkInformation.NetworkChange.NetworkAddressChanged += (s, e) =>
+                {
+                    Dispatcher.UIThread.InvokeAsync(LoadInterfaces);
+                };
+            }
+            catch { }
+
             LoadInterfaces();
+
+            if (IsElevationWarningVisible)
+            {
+                SetStatus("Warning: Superuser privileges or CAP_NET_RAW required.", "warning");
+            }
+        }
+
+        public void OnDismissDisclaimerClick(object sender, RoutedEventArgs e)
+        {
+            IsDisclaimerVisible = false;
         }
 
         private void OnDetectedPcsCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
@@ -185,6 +236,10 @@ namespace SelfishNet
                 SetStatus("Stopping previous scan and releasing network resources...", "warning");
                 var oldEngine = _engine;
                 var oldIdService = _identifierService;
+                if (oldEngine != null)
+                {
+                    oldEngine.OnInterfaceDisconnected -= OnEngineInterfaceDisconnected;
+                }
                 _engine = null;
                 _identifierService = null;
 
@@ -252,6 +307,7 @@ namespace SelfishNet
 
                 _engine = newEngine;
                 _identifierService = newIdService;
+                _engine.OnInterfaceDisconnected += OnEngineInterfaceDisconnected;
 
                 // Show detected network info in metadata footer
                 string localIp = _engine.LocalIp != null ? new System.Net.IPAddress(_engine.LocalIp).ToString() : "N/A";
@@ -285,6 +341,13 @@ namespace SelfishNet
 
         public async void OnSpoofClick(object sender, RoutedEventArgs e)
         {
+            if (!PrivilegeDetector.HasCaptureCapabilities())
+            {
+                SetStatus("Cannot start spoof: superuser (root/admin) or CAP_NET_RAW required.", "error");
+                IsElevationWarningVisible = true;
+                return;
+            }
+
             if (_engine == null)
             {
                 SetStatus("Scan the network before starting spoof.", "warning");
@@ -399,10 +462,40 @@ namespace SelfishNet
             }
         }
 
+        private void OnEngineInterfaceDisconnected(string reason)
+        {
+            Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                SetStatus($"Network disconnected: {reason}", "error");
+
+                var btnSpoof = this.FindControl<Button>("BtnSpoof");
+                var spoofText = this.FindControl<TextBlock>("SpoofButtonText");
+                var spoofIcon = this.FindControl<Avalonia.Controls.PathIcon>("SpoofButtonIcon");
+
+                if (btnSpoof != null)
+                {
+                    btnSpoof.Classes.Clear();
+                    btnSpoof.Classes.Add("danger");
+                    btnSpoof.IsEnabled = true;
+                }
+                if (spoofText != null) spoofText.Text = "START ARP SPOOF";
+                if (spoofIcon != null && Application.Current?.Resources.TryGetResource("IconZap", null, out var zapGeom) == true)
+                {
+                    spoofIcon.Data = zapGeom as Geometry;
+                }
+
+                LoadInterfaces();
+            });
+        }
+
         private void Cleanup()
         {
             try
             {
+                if (_engine != null)
+                {
+                    _engine.OnInterfaceDisconnected -= OnEngineInterfaceDisconnected;
+                }
                 _identifierService?.StopMdnsListener();
                 _identifierService?.Dispose();
                 _identifierService = null;
