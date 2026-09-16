@@ -12,6 +12,8 @@
 *.app
 *.iso
 *.testsettings
+dist/
+publish_*.sh
 
 ## --- IDEs & Editores ---
 # Visual Studio Code
