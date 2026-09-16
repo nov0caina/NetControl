@@ -6,7 +6,7 @@ REM ═════════════════════════�
 
 echo.
 echo ╔══════════════════════════════════════╗
-echo ║   NetControl - Windows Installer     ║
+echo ║    NetControl - Windows Installer    ║
 echo ╚══════════════════════════════════════╝
 echo.
 
@@ -75,7 +75,7 @@ if %errorlevel% neq 0 (
 
 echo.
 echo ╔══════════════════════════════════════╗
-echo ║   [OK] Installation complete!        ║
+echo ║    Installation complete! [OK]       ║
 echo ╚══════════════════════════════════════╝
 echo.
 echo Run start_windows.bat to launch NetControl.
