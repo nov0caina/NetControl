@@ -1,6 +1,6 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════
-#  SelfishNet — Linux Launcher
+#  NetControl - Linux Launcher
 #  Enables IP forwarding and runs with sudo
 # ═══════════════════════════════════════════════════════
 
@@ -14,23 +14,23 @@ NC='\033[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$SCRIPT_DIR/SelfishNet"
-BINARY="$PROJECT_DIR/bin/Release/net8.0/SelfishNet"
+BINARY="$PROJECT_DIR/bin/Release/net8.0/NetControl"
 
 echo -e "${CYAN}"
 echo "╔══════════════════════════════════════╗"
-echo "║     SelfishNet — Linux Launcher      ║"
+echo "║     NetControl - Linux Launcher      ║"
 echo "╚══════════════════════════════════════╝"
 echo -e "${NC}"
 
 # ── Check if built ──
-if [ ! -f "$BINARY" ] && [ ! -f "$BINARY.dll" ]; then
-    echo -e "${RED}[ERROR] SelfishNet not built. Run ./install_linux.sh first.${NC}"
+if [ ! -f "$BINARY" ] && [ ! -f "$BINARY.dll" ] && [ ! -f "$PROJECT_DIR/bin/Release/net8.0/SelfishNet" ] && [ ! -f "$PROJECT_DIR/bin/Release/net8.0/SelfishNet.dll" ]; then
+    echo -e "${RED}[ERROR] NetControl not built. Run ./install_linux.sh first.${NC}"
     exit 1
 fi
 
 # ── Check for root ──
 if [ "$EUID" -ne 0 ]; then
-    echo -e "${YELLOW}[!] SelfishNet requires root privileges for network access.${NC}"
+    echo -e "${YELLOW}[!] NetControl requires root privileges for network access.${NC}"
     echo -e "${YELLOW}    Relaunching with sudo...${NC}"
     echo ""
     exec sudo bash "$0" "$@"
@@ -42,7 +42,7 @@ cleanup() {
     echo -e "${YELLOW}[Cleanup] Restoring network state...${NC}"
     if [ -n "$CURRENT_FWD" ]; then
         sysctl -w net.ipv4.ip_forward=$CURRENT_FWD > /dev/null 2>&1
-        echo -e "${GREEN}[✓] IP forwarding restored to previous state ($CURRENT_FWD).${NC}"
+        echo -e "${GREEN}[OK] IP forwarding restored to previous state ($CURRENT_FWD).${NC}"
     fi
 
     # Flush residual tc qdiscs if tc is present
@@ -58,10 +58,10 @@ trap cleanup EXIT
 echo -e "${YELLOW}[1/2] Enabling IP forwarding...${NC}"
 CURRENT_FWD=$(cat /proc/sys/net/ipv4/ip_forward)
 sysctl -w net.ipv4.ip_forward=1 > /dev/null 2>&1
-echo -e "${GREEN}[✓] IP forwarding enabled.${NC}"
+echo -e "${GREEN}[OK] IP forwarding enabled.${NC}"
 
 # ── Launch ──
-echo -e "${YELLOW}[2/2] Launching SelfishNet...${NC}"
+echo -e "${YELLOW}[2/2] Launching NetControl...${NC}"
 echo ""
 
 cd "$PROJECT_DIR"
@@ -69,4 +69,3 @@ dotnet run --configuration Release --no-build
 EXIT_CODE=$?
 
 exit $EXIT_CODE
-
