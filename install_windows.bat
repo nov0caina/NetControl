@@ -63,7 +63,7 @@ if exist "C:\Windows\System32\Npcap\wpcap.dll" (
 
 REM ── Build project ──
 echo [3/3] Building NetControl...
-cd /d "%~dp0SelfishNet"
+cd /d "%~dp0NetControl"
 dotnet restore
 dotnet build --configuration Release
 

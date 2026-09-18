@@ -1,7 +1,7 @@
 using System;
 using System.Net;
 
-namespace SelfishNet.Throttling
+namespace NetControl.Throttling
 {
     /// <summary>
     /// Cross-platform abstraction for per-device network bandwidth throttling.

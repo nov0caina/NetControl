@@ -76,7 +76,7 @@ fi
 # ── Build project ──
 echo -e "${YELLOW}[3/3] Building NetControl...${NC}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR/SelfishNet"
+cd "$SCRIPT_DIR/NetControl"
 dotnet restore
 dotnet build --configuration Release
 

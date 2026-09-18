@@ -2,9 +2,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SelfishNet", "SelfishNet\SelfishNet.csproj", "{8B26322C-4A2D-4B44-A7BC-4B4BC8F84984}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetControl", "NetControl\NetControl.csproj", "{8B26322C-4A2D-4B44-A7BC-4B4BC8F84984}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SelfishNet.Tests", "tests\SelfishNet.Tests\SelfishNet.Tests.csproj", "{4C83602D-981F-433E-BDC7-CA7BB147E68A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetControl.Tests", "tests\NetControl.Tests\NetControl.Tests.csproj", "{4C83602D-981F-433E-BDC7-CA7BB147E68A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

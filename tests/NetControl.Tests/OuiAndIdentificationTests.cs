@@ -2,7 +2,7 @@ using System;
 using System.Net.NetworkInformation;
 using Xunit;
 
-namespace SelfishNet.Tests
+namespace NetControl.Tests
 {
     public class OuiAndIdentificationTests
     {

@@ -6,7 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using Avalonia.Threading;
 
-namespace SelfishNet
+namespace NetControl
 {
     public class PC : INotifyPropertyChanged
     {

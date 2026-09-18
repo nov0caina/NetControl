@@ -13,7 +13,7 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$SCRIPT_DIR/SelfishNet"
+PROJECT_DIR="$SCRIPT_DIR/NetControl"
 BINARY="$PROJECT_DIR/bin/Release/net8.0/NetControl"
 
 echo -e "${CYAN}"
@@ -23,7 +23,7 @@ echo "╚═══════════════════════�
 echo -e "${NC}"
 
 # ── Check if built ──
-if [ ! -f "$BINARY" ] && [ ! -f "$BINARY.dll" ] && [ ! -f "$PROJECT_DIR/bin/Release/net8.0/SelfishNet" ] && [ ! -f "$PROJECT_DIR/bin/Release/net8.0/SelfishNet.dll" ]; then
+if [ ! -f "$BINARY" ] && [ ! -f "$BINARY.dll" ]; then
     echo -e "${RED}[ERROR] NetControl not built. Run ./install_mac.sh first.${NC}"
     exit 1
 fi

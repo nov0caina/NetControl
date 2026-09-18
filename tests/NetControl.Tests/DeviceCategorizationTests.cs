@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace SelfishNet.Tests
+namespace NetControl.Tests
 {
     public class DeviceCategorizationTests
     {

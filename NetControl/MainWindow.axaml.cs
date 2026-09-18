@@ -12,7 +12,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
-namespace SelfishNet
+namespace NetControl
 {
     public partial class MainWindow : Window, INotifyPropertyChanged
     {

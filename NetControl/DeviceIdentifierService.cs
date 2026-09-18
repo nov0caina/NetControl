@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using SharpPcap;
 using SharpPcap.LibPcap;
 
-namespace SelfishNet
+namespace NetControl
 {
     public sealed class DeviceIdentifierService : IDeviceIdentifierService
     {

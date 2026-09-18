@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 
-namespace SelfishNet
+namespace NetControl
 {
     /// <summary>Callback when a device is detected or removed.</summary>
     public delegate void OnDeviceEvent(PC pc);

@@ -3,7 +3,7 @@ using System.Net.NetworkInformation;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace SelfishNet.Tests
+namespace NetControl.Tests
 {
     public class AtomicAccumulatorTests
     {

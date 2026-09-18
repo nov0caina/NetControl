@@ -1,6 +1,6 @@
 using System;
 
-namespace SelfishNet.Throttling
+namespace NetControl.Throttling
 {
     /// <summary>
     /// Factory that selects and instantiates the optimal bandwidth throttling provider

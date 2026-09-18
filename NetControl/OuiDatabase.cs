@@ -2,7 +2,7 @@ using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 
-namespace SelfishNet
+namespace NetControl
 {
     public static class OuiDatabase
     {

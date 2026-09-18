@@ -3,7 +3,7 @@
 Cross-platform network bandwidth diagnostics, device discovery, and ARP traffic management for local networks. The modern successor to SelfishNet, built with .NET 8 and Avalonia UI.
 
 > [!WARNING]
-> **Official Repository and Security Notice:** This repository (`https://github.com/nov0caina/SelfishNet`) is the **only official source** for the modern NetControl codebase. Third-party domains (such as `selfishnet.org` and unauthorized mirrors) are not affiliated with this project, distribute unauthorized versions, and may pose malware or security risks. Do not download or execute untrusted binaries from third-party websites.
+> **Official Repository and Security Notice:** This repository (`https://github.com/nov0caina/NetControl`) is the **only official source** for the modern NetControl codebase. Third-party domains (such as `selfishnet.org` and unauthorized mirrors) are not affiliated with this project, distribute unauthorized versions, and may pose malware or security risks. Do not download or execute untrusted binaries from third-party websites.
 
 > [!IMPORTANT]
 > **Ethical and Authorized Usage:** NetControl is designed strictly for authorized network diagnostics, administrative troubleshooting, and educational research in controlled laboratory environments. Executing ARP cache redirection or packet interception on networks without explicit, documented permission from the network owner is illegal and unethical.
@@ -133,23 +133,23 @@ Verify the integrity of downloaded distribution packages using SHA-256:
 
 ### 1. Clone Repository
 ```bash
-git clone https://github.com/nov0caina/SelfishNet.git
-cd SelfishNet
+git clone https://github.com/nov0caina/NetControl.git
+cd NetControl
 ```
 
 ### 2. Build and Run
 ```bash
 # Build entire solution (produces NetControl binary)
-dotnet build SelfishNet.sln
+dotnet build NetControl.sln
 
 # Run application locally
-dotnet run --project SelfishNet/SelfishNet.csproj
+dotnet run --project NetControl/NetControl.csproj
 ```
 
 ### 3. Run Automated Tests
 The repository includes an automated test suite covering concurrency, rate calculation, OUI lookups, heuristic classification, and boundary conditions:
 ```bash
-dotnet test SelfishNet.sln
+dotnet test NetControl.sln
 ```
 
 ### 4. Publish Standalone Binaries
@@ -157,16 +157,16 @@ To compile single-file, self-contained binaries for target platforms:
 
 ```bash
 # Linux x64 (produces dist/linux-x64/NetControl)
-dotnet publish SelfishNet/SelfishNet.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o dist/linux-x64
+dotnet publish NetControl/NetControl.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o dist/linux-x64
 
 # Windows x64 (produces dist/win-x64/NetControl.exe)
-dotnet publish SelfishNet/SelfishNet.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o dist/win-x64
+dotnet publish NetControl/NetControl.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o dist/win-x64
 
 # macOS Apple Silicon (produces dist/osx-arm64/NetControl)
-dotnet publish SelfishNet/SelfishNet.csproj -c Release -r osx-arm64 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o dist/osx-arm64
+dotnet publish NetControl/NetControl.csproj -c Release -r osx-arm64 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o dist/osx-arm64
 
 # macOS Intel (produces dist/osx-x64/NetControl)
-dotnet publish SelfishNet/SelfishNet.csproj -c Release -r osx-x64 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o dist/osx-x64
+dotnet publish NetControl/NetControl.csproj -c Release -r osx-x64 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o dist/osx-x64
 ```
 
 ---
@@ -182,7 +182,7 @@ ________________________________________________________________________________
 Herramienta multiplataforma para diagnostico de ancho de banda, descubrimiento de dispositivos y gestion de trafico ARP en redes locales. El sucesor moderno de SelfishNet, desarrollada con .NET 8 y Avalonia UI.
 
 > [!WARNING]
-> **Aviso Oficial de Seguridad:** Este repositorio (`https://github.com/nov0caina/SelfishNet`) es la **unica fuente oficial** para el codigo moderno de NetControl. Los dominios de terceros (como `selfishnet.org` y otros sitios no autorizados) no tienen relacion alguna con este proyecto, redistribuyen versiones no autorizadas y pueden contener malware o riesgos de seguridad. No descargues ni ejecutes binarios procedentes de sitios no verificados.
+> **Aviso Oficial de Seguridad:** Este repositorio (`https://github.com/nov0caina/NetControl`) es la **unica fuente oficial** para el codigo moderno de NetControl. Los dominios de terceros (como `selfishnet.org` y otros sitios no autorizados) no tienen relacion alguna con este proyecto, redistribuyen versiones no autorizadas y pueden contener malware o riesgos de seguridad. No descargues ni ejecutes binarios procedentes de sitios no verificados.
 
 > [!IMPORTANT]
 > **Uso Etico y Responsable:** NetControl esta disenado estrictamente para tareas de diagnostico, administracion de red e investigacion academica en entornos de laboratorio controlados. La manipulacion de tablas ARP o la interceptacion de paquetes en redes sin el consentimiento previo y formal del propietario es ilegal y no etica.
@@ -312,23 +312,23 @@ Verifica la autenticidad e integridad de los paquetes descargados con SHA-256:
 
 ### 1. Clonar el Repositorio
 ```bash
-git clone https://github.com/nov0caina/SelfishNet.git
-cd SelfishNet
+git clone https://github.com/nov0caina/NetControl.git
+cd NetControl
 ```
 
 ### 2. Compilar y Ejecutar
 ```bash
 # Compilar la solucion completa (genera el binario NetControl)
-dotnet build SelfishNet.sln
+dotnet build NetControl.sln
 
 # Ejecutar el proyecto en desarrollo
-dotnet run --project SelfishNet/SelfishNet.csproj
+dotnet run --project NetControl/NetControl.csproj
 ```
 
 ### 3. Ejecutar Pruebas Automatizadas
 El repositorio contiene pruebas automatizadas para validar acumuladores concurrentes, calculo de tasas, resolucion OUI y clasificaciones heurísticas:
 ```bash
-dotnet test SelfishNet.sln
+dotnet test NetControl.sln
 ```
 
 ---

@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 using System.Security.Principal;
 using SharpPcap;
 
-namespace SelfishNet
+namespace NetControl
 {
     public static class PrivilegeDetector
     {

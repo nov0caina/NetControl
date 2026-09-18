@@ -4,11 +4,11 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Threading;
-using SelfishNet.Throttling;
+using NetControl.Throttling;
 using SharpPcap;
 using SharpPcap.LibPcap;
 
-namespace SelfishNet
+namespace NetControl
 {
     public class CArp : IDisposable
     {

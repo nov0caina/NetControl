@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace SelfishNet
+namespace NetControl
 {
     /// <summary>
     /// Service that identifies network devices by resolving OUI vendor, hostname,

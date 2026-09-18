@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
 
-namespace SelfishNet.Throttling
+namespace NetControl.Throttling
 {
     /// <summary>
     /// Linux native traffic shaper utilizing the kernel Traffic Control (tc)

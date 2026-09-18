@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\SelfishNet\SelfishNet.csproj" />
+    <ProjectReference Include="..\..\NetControl\NetControl.csproj" />
   </ItemGroup>
 
 </Project>

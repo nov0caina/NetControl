@@ -1,7 +1,7 @@
-﻿using Avalonia;
+using Avalonia;
 using System;
 
-namespace SelfishNet;
+namespace NetControl;
 
 class Program
 {

@@ -52,7 +52,7 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
-## --- SelfishNet Específicos (Logs o Capturas) ---
+## --- NetControl Específicos (Logs o Capturas) ---
 *.pcap
 *.cap
 logs/

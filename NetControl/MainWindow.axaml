@@ -1,6 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="SelfishNet.MainWindow"
+        x:Class="NetControl.MainWindow"
         Title="NetControl - Network Traffic Management"
         Icon="/Assets/app_icon.ico"
         Width="980" Height="620"

@@ -21,9 +21,8 @@ if %errorlevel% neq 0 (
 
 REM ── Check if built ──
 set "BUILT=0"
-if exist "%~dp0SelfishNet\bin\Release\net8.0\NetControl.dll" set "BUILT=1"
-if exist "%~dp0SelfishNet\bin\Release\net8.0\NetControl.exe" set "BUILT=1"
-if exist "%~dp0SelfishNet\bin\Release\net8.0\SelfishNet.dll" set "BUILT=1"
+if exist "%~dp0NetControl\bin\Release\net8.0\NetControl.dll" set "BUILT=1"
+if exist "%~dp0NetControl\bin\Release\net8.0\NetControl.exe" set "BUILT=1"
 
 if "%BUILT%"=="0" (
     echo [ERROR] NetControl not built. Run install_windows.bat first.
@@ -34,7 +33,7 @@ if "%BUILT%"=="0" (
 REM ── Launch ──
 echo [OK] Launching NetControl...
 echo.
-cd /d "%~dp0SelfishNet"
+cd /d "%~dp0NetControl"
 dotnet run --configuration Release --no-build
 set "EXIT_CODE=%errorlevel%"
 
