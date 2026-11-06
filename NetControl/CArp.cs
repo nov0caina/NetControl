@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Threading;
 using NetControl.Throttling;
+using PacketDotNet;
 using SharpPcap;
 using SharpPcap.LibPcap;
 
@@ -243,41 +244,31 @@ namespace NetControl
                     var status = _device.GetNextPacket(out pCapture);
                     if (status != GetPacketStatus.PacketRead) continue;
 
-                    var rawPacket = pCapture.GetPacket()?.Data;
-                    if (rawPacket == null || rawPacket.Length < 42) continue;
+                    RawCapture rawCapture = pCapture.GetPacket();
+                    if (!TryParseArpPacket(rawCapture, out IPAddress senderIp, out PhysicalAddress senderMac, out _))
+                        continue;
 
-                    byte[] srcMac = new byte[6];
-                    Array.Copy(rawPacket, 6, srcMac, 0, 6);
-                    if (Tools.AreValuesEqual(srcMac, LocalMac)) continue;
+                    if (Tools.AreValuesEqual(senderMac.GetAddressBytes(), LocalMac)) continue;
 
-                    // Learn from both ARP Request (1) and ARP Reply (2)
-                    if (rawPacket[21] == 1 || rawPacket[21] == 2)
+                    bool isGateway = RouterIp != null && senderIp.Equals(new IPAddress(RouterIp));
+                    if (isGateway && (RouterMac == null || !Tools.AreValuesEqual(RouterMac, senderMac.GetAddressBytes())))
                     {
-                        byte[] senderIp = new byte[4];
-                        byte[] senderMac = new byte[6];
-                        Array.Copy(rawPacket, 22, senderMac, 0, 6);
-                        Array.Copy(rawPacket, 28, senderIp, 0, 4);
+                        RouterMac = senderMac.GetAddressBytes();
+                    }
 
-                        bool isGateway = Tools.AreValuesEqual(senderIp, RouterIp);
-                        if (isGateway && (RouterMac == null || !Tools.AreValuesEqual(RouterMac, senderMac)))
-                        {
-                            RouterMac = senderMac;
-                        }
+                    bool isLocal = LocalIp != null && senderIp.Equals(new IPAddress(LocalIp));
 
-                        bool isLocal = Tools.AreValuesEqual(senderIp, LocalIp);
+                    PC newPc = new PC
+                    {
+                        Ip = senderIp,
+                        Mac = senderMac,
+                        IsGateway = isGateway,
+                        IsLocalPc = isLocal
+                    };
 
-                        PC newPc = new PC
-                        {
-                            Ip = new IPAddress(senderIp),
-                            Mac = new PhysicalAddress(senderMac),
-                            IsGateway = isGateway,
-                            IsLocalPc = isLocal
-                        };
-
-                        if (_pcList.AddDevice(newPc))
-                        {
-                            Console.WriteLine($"[DETECTED] IP: {newPc.Ip} MAC: {newPc.Mac} {(isGateway ? "(Gateway)" : "")}");
-                        }
+                    if (_pcList.AddDevice(newPc))
+                    {
+                        Console.WriteLine($"[DETECTED] IP: {newPc.Ip} MAC: {newPc.Mac} {(isGateway ? "(Gateway)" : "")}");
                     }
                 }
             }
@@ -628,16 +619,14 @@ namespace NetControl
                         var status = _trafficDevice.GetNextPacket(out pCapture);
                         if (status != GetPacketStatus.PacketRead) continue;
 
-                        var raw = pCapture.GetPacket()?.Data;
-                        if (raw == null || raw.Length < 34) continue;
+                        RawCapture rawCapture = pCapture.GetPacket();
+                        if (!TryParseIpv4Packet(rawCapture, out IPAddress sourceIp, out IPAddress destinationIp))
+                            continue;
 
-                        // Check for IPv4 packet (EtherType 0x0800)
-                        if (raw[12] != 0x08 || raw[13] != 0x00) continue;
+                        uint srcIpUint = IpAddressToUint(sourceIp);
+                        uint dstIpUint = IpAddressToUint(destinationIp);
 
-                        uint srcIpUint = (uint)((raw[26] << 24) | (raw[27] << 16) | (raw[28] << 8) | raw[29]);
-                        uint dstIpUint = (uint)((raw[30] << 24) | (raw[31] << 16) | (raw[32] << 8) | raw[33]);
-
-                        int packetSize = raw.Length;
+                        int packetSize = rawCapture.Data.Length;
 
                         // Fast O(1) matching by integer IP
                         // srcIp matches -> device sent this packet (Egress / Upload)
@@ -707,6 +696,79 @@ namespace NetControl
         }
 
         private static string FormatSpeed(double kbs) => PC.FormatSpeed(kbs);
+
+        /// <summary>
+        /// Parses an ARP packet using its capture link-layer type instead of
+        /// assuming a 14-byte Ethernet header.
+        /// </summary>
+        public static bool TryParseArpPacket(
+            RawCapture capture,
+            out IPAddress senderIp,
+            out PhysicalAddress senderMac,
+            out ArpOperation operation)
+        {
+            senderIp = null;
+            senderMac = null;
+            operation = default;
+
+            if (capture?.Data == null || capture.Data.Length == 0)
+                return false;
+
+            try
+            {
+                Packet packet = Packet.ParsePacket(capture.LinkLayerType, capture.Data);
+                ArpPacket arp = packet.Extract<ArpPacket>();
+                if (arp?.SenderProtocolAddress == null || arp.SenderHardwareAddress == null)
+                    return false;
+
+                senderIp = arp.SenderProtocolAddress;
+                senderMac = arp.SenderHardwareAddress;
+                operation = arp.Operation;
+                return operation == ArpOperation.Request || operation == ArpOperation.Response;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Parses an IPv4 packet using its capture link-layer type instead of
+        /// assuming fixed Ethernet and IPv4 header offsets.
+        /// </summary>
+        public static bool TryParseIpv4Packet(
+            RawCapture capture,
+            out IPAddress sourceIp,
+            out IPAddress destinationIp)
+        {
+            sourceIp = null;
+            destinationIp = null;
+
+            if (capture?.Data == null || capture.Data.Length == 0)
+                return false;
+
+            try
+            {
+                Packet packet = Packet.ParsePacket(capture.LinkLayerType, capture.Data);
+                IPv4Packet ipv4 = packet.Extract<IPv4Packet>();
+                if (ipv4?.SourceAddress == null || ipv4.DestinationAddress == null)
+                    return false;
+
+                sourceIp = ipv4.SourceAddress;
+                destinationIp = ipv4.DestinationAddress;
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static uint IpAddressToUint(IPAddress address)
+        {
+            byte[] bytes = address.GetAddressBytes();
+            return (uint)((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]);
+        }
 
         // ──────────────────────────────────────────────
         //  ARP Packet Construction
